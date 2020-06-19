@@ -1,0 +1,32 @@
+#+TITLE: FapTrack - aggregate your videos files and track your viewing activities
+
+* Getting started
+    - Clone this repository: 
+    #+BEGIN_SRC 
+        git clone https://github.com/riaqn/faptrack
+        cd faptrack
+    #+END_SRC
+
+    - Setting up [[https://virtualenv.pypa.io/en/latest/][VirtualEnv]] (optional)
+
+    - Install dependencies
+    #+BEGIN_SRC
+    pip install pyfuse3 pymediainfo
+    #+END_SRC
+
+    - Initialize sqlite3 database: 
+    #+BEGIN_SRC
+     sqlite3 faptrack.db < trackfs.sql
+    #+END_SRC
+
+    - Add videos to the database
+    #+BEGIN_SRC
+    ./manage.py -d faptrack.db add someFile.mp4 # add a single file
+    ./manage.py -d faptrack.db add -r someFolder # add all files in a directory recursively, non-video files will be ignored
+    #+END_SRC
+    
+    - Mount and play
+    #+BEGIN_SRC
+    ./mount.py -d faptrack.db /mnt # mount the database to /mnt
+    ls -tr /mnt # you will see 100 most popular and least viewed videos, in that order
+    #+END_SRC
