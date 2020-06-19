@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import sqlite3
-import config
 
 import os
 import stat
@@ -17,6 +16,8 @@ def walk(path):
     
 def main():
     parser = argparse.ArgumentParser(description='Managing video database')
+    parser.add_argument('--database', '-d', type=str, help='the sqlite3 database file', default='faptrack.db')
+ 
     subparsers = parser.add_subparsers(dest='subcmd')
 
     parser_add = subparsers.add_parser('add', help='adding files')
@@ -26,7 +27,7 @@ def main():
     args = parser.parse_args()
 
     if args.subcmd == 'add':
-        conn = config.conn_fac()
+        conn = sqlite3.connect(args.database)
         conn.isolation_level = 'DEFERRED'
         def func(path):
             try:

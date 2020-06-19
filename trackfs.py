@@ -2,7 +2,6 @@ from vfs import (iNode, Directory, File)
 import sqlite3
 import os
 import time
-from config import conn_fac
 
 '''
 Track albums or videos?
@@ -19,9 +18,9 @@ def gettime():
         return time.clock_gettime_ns(time.CLOCK_MONOTONIC)
         
 class TrackedFile(File):
-    def __init__(self, vid, path):
+    def __init__(self, vid, path, conn):
         self.vid = vid
-        self.conn = conn_fac()
+        self.conn = conn
         self.fd = open(path, 'rb')
         print(vid, path, "opened")
         self.time = gettime()
@@ -41,13 +40,14 @@ class TrackedFile(File):
         self.fd.close()
 
 class TrackedDirectory(Directory):
-    def __init__(self):
+    def __init__(self, conn_fac):
+        self.conn_fac = conn_fac
         self.conn = conn_fac()
         self.conn.isolation_level = "DEFERRED"
 
     def __make_inode(self, vid, path, mtime):
         async def op():
-            return TrackedFile(vid, path)
+            return TrackedFile(vid, path, self.conn_fac())
         size = os.path.getsize(path)
         inode = iNode(op, size, mtime)
         return inode
@@ -64,20 +64,10 @@ class TrackedDirectory(Directory):
             i += 1
             yield (name.encode(), inode, i)
 
-    async def __getitem(self, key):
-        try:
-            i = int(key[0:2])
-            c = self.conn.cursor()
-            c.execute('SELECT vid, path FROM videos_avg_avg_view_time LIMIT 1 offset ?', (i, ))
-            (vid, path) = c.fetchone()
-            return self.__make_inode(vid, path)
-        except:
-            return None
-
     async def release(self):
         self.conn.close()
 
-async def __op():
-    return TrackedDirectory()
-
-trackFS = iNode(__op, None, gettime())
+def trackFS(conn_fac):
+    async def __op():
+        return TrackedDirectory(conn_fac)
+    return iNode(__op, None, gettime())
