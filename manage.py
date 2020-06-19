@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import sqlite3
+import logging
 
 import os
 import stat
@@ -45,12 +46,12 @@ def main():
             if args.recursive:
                 for p in walk(path):
                     if func(p):
-                        print("added: ", p)
+                        print(p)
                         flag = True
             else:
                 flag = func(path)
             if not flag:
-                print('No videos are added: ', path)
+                log.error('No videos are added in %s', path)
                 break
 
         if flag:
