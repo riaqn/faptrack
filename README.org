@@ -30,3 +30,10 @@
     ./mount.py -d faptrack.db /mnt # mount the database to /mnt
     ls -tr /mnt # you will see 100 most popular and least viewed videos, in that order
     #+END_SRC
+
+* Algorithm
+    The program relies on a simple algorithm:
+    - tracking the opening and closing of a video, the program knows how much time the user spent on that video
+    - the program can therefore calculate the average time the user spent on a video per view (src_python{avg_view_time = view_time / view_count})
+    - if we just list the videos with the highest ~avg_view_time~ we end up boring the user with the same videos again and again
+    - instead, we list the videos with the highest src_python{avg_view_time / view_count} - that is, the videos most liked but least watched.
