@@ -38,8 +38,8 @@ class TrackedFile(File):
     async def release(self):
         cur = gettime()
         view_time = cur - self.time
-        if view_time > max_view_time:
-            view_time = max_view_time
+        if view_time > self.max_view_time:
+            view_time = self.max_view_time
         logging.info("close(vid=%d),view_time=%f", self.vid, view_time/(10**9))
         self.conn.execute('UPDATE videos SET view_time = view_time + ?, view_count = view_count + 1 WHERE vid = ?', (view_time, self.vid))
         self.conn.commit()
@@ -55,7 +55,7 @@ class TrackedDirectory(Directory):
 
     def __make_inode(self, vid, path, mtime):
         async def op():
-            return TrackedFile(vid, path, self.conn_fac())
+            return TrackedFile(vid, path, self.conn_fac(), self.max_view_time)
         size = os.path.getsize(path)
         inode = iNode(op, size, mtime)
         return inode

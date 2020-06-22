@@ -21,15 +21,23 @@ def main():
  
     subparsers = parser.add_subparsers(dest='subcmd')
 
-    parser_add = subparsers.add_parser('add', help='adding files')
-    parser_add.add_argument('file', type=str, nargs='+',help='files to add to the database')
-    parser_add.add_argument('-r', '--recursive', action='store_true')
+    parser_add = subparsers.add_parser('add', help='add videos')
+    parser_add.add_argument('file', type=str, nargs='+',help='videos to add to the database')
+    parser_add.add_argument('-r', '--recursive', action='store_true', help='scan folder recursively')
+    
+    parser_list = subparsers.add_parser('list', help='list videos')
+    parser_list.add_argument('-o', '--offset', type=int, help='offset', default=0)
+    parser_list.add_argument('-l', '--limit', type=int, help='limit', default=100)
+
+    parser_reset = subparsers.add_parser('reset', help='reset history of a video')
+    parser_reset.add_argument('vid', type=str, nargs='+', help='videos to reset')
 
     args = parser.parse_args()
 
+    conn = sqlite3.connect(args.database)
+    conn.isolation_level = 'DEFERRED'
+
     if args.subcmd == 'add':
-        conn = sqlite3.connect(args.database)
-        conn.isolation_level = 'DEFERRED'
         def func(path):
             try:
                 media_info = MediaInfo.parse(path)
@@ -51,14 +59,24 @@ def main():
             else:
                 flag = func(path)
             if not flag:
-                log.error('No videos are added in %s', path)
+                logging.error('No videos are added in %s', path)
                 break
 
         if flag:
             conn.commit()
         else:
             conn.rollback()
-        conn.close()
-
+        
+    elif args.subcmd == 'list':
+        for row in conn.execute('SELECT vid, avg_avg_view_time, path from videos where view_count > 0 ORDER BY avg_avg_view_time DESC LIMIT ? OFFSET ?', (args.limit, args.offset)):
+            print(row[0],row[1], row[2])
+    elif args.subcmd == 'reset':
+        c = conn.cursor()
+        for vid in args.vid:
+            c.execute('update videos set view_count=0,view_time=0 where vid=?', (vid, ))
+        conn.commit()
+    else:
+        logging.error('No subcmd provided')
+    conn.close()
 if __name__ == "__main__":
     main()
