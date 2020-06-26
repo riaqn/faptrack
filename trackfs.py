@@ -4,6 +4,7 @@ import os
 import time
 from datetime import timedelta
 import logging
+import asyncio
 
 logging.basicConfig(format='%(asctime)s %(message)s',level=logging.INFO)
 
@@ -22,13 +23,35 @@ def gettime():
         return time.clock_gettime_ns(time.CLOCK_MONOTONIC)
         
 class TrackedFile(File):
+    def normalize(self, x):
+        return int(self.max_view_time * x / (x + self.max_view_time))
     def __init__(self, vid, path, conn, max_view_time):
         self.vid = vid
         self.conn = conn
         self.fd = open(path, 'rb')
         logging.info("open(vid=%d,path=%s)",vid, path)
-        self.time = gettime()
+        self.start_time = gettime()
         self.max_view_time = max_view_time
+
+        self.conn.execute('UPDATE videos SET view_count = view_count + 1 where vid = ?', (self.vid, ))
+        self.conn.commit()
+
+    async def __update(self):
+        last_view_time = 0
+        released = False
+        while True:
+            try:
+                await asyncio.sleep(10)
+            except asyncio.CancelledError:
+                released = True
+            finally:
+                cur = gettime()
+                view_time = self.normalize(cur - self.start_time)
+                self.conn.execute('UPDATE videos SET view_time = viewtime + ? where vid = ?', (view_time - last_view_time, self.vid))
+                self.conn.commit()
+                last_view_time = view_time
+            if released:
+                break
 
     async def read(self, off, size):
         logging.debug("read(vid=%d,off=%d,size=%d)",self.vid,off,size)
@@ -36,12 +59,6 @@ class TrackedFile(File):
         return self.fd.read(size)
 
     async def release(self):
-        cur = gettime()
-        view_time = cur - self.time
-        if view_time > self.max_view_time:
-            view_time = self.max_view_time
-        logging.info("close(vid=%d),view_time=%f", self.vid, view_time/(10**9))
-        self.conn.execute('UPDATE videos SET view_time = view_time + ?, view_count = view_count + 1 WHERE vid = ?', (view_time, self.vid))
         self.conn.commit()
 
         self.fd.close()
