@@ -12,8 +12,3 @@ CREATE TABLE videos (
                                 end
    )
 );
-
-CREATE VIEW videos_avg_avg_view_time (vid, path)
-AS
-    select vid, path from videos
-    ORDER BY avg_avg_view_time DESC, vid ASC;

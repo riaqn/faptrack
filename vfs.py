@@ -4,7 +4,6 @@ import trio
 from numpy import (uint64, uint32) 
 import errno
 from stat import (S_IFREG, S_IFDIR)
-import sqlite3
 
 class Directory:
     async def read(self, start_id):

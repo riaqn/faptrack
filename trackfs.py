@@ -6,19 +6,6 @@ from datetime import timedelta
 import logging
 import asyncio
 
-logging.basicConfig(format='%(asctime)s %(message)s',level=logging.INFO)
-
-'''
-Track albums or videos?
-1. We do want to know which video is the best in an album
-2. but the quality of videos in an albums are correlated; we want to use that information. But I guess you can just view the videos anyway - no need to be lazy
-
-
-database: contains two tables:
-1. albums. aid, view_time, view_count
-2. videos. vid, aid, path
-'''
-
 def gettime():
         return time.clock_gettime_ns(time.CLOCK_MONOTONIC)
         
@@ -36,6 +23,8 @@ class TrackedFile(File):
         self.conn.execute('UPDATE videos SET view_count = view_count + 1 where vid = ?', (self.vid, ))
         self.conn.commit()
 
+        self.task = asyncio.create_task(self.__update)
+
     async def __update(self):
         last_view_time = 0
         released = False
@@ -51,6 +40,7 @@ class TrackedFile(File):
                 self.conn.commit()
                 last_view_time = view_time
             if released:
+                logging.info("close(vid=%d,view_time=%f,normalized=%f)", self.vid, cur - self.start_time, view_time)
                 break
 
     async def read(self, off, size):
@@ -59,8 +49,7 @@ class TrackedFile(File):
         return self.fd.read(size)
 
     async def release(self):
-        self.conn.commit()
-
+        self.task.cancel()
         self.fd.close()
 
 class TrackedDirectory(Directory):
@@ -80,7 +69,7 @@ class TrackedDirectory(Directory):
     async def read(self, start_id):
         c = self.conn.cursor()
         i = start_id
-        for (vid, path) in c.execute("SELECT vid, path FROM videos_avg_avg_view_time LIMIT -1 OFFSET ?", (start_id,)):
+        for (vid, path) in c.execute("SELECT vid, path FROM videos order by avg_avg_view_time DESC, random() LIMIT -1 OFFSET ?", (start_id,)):
             if i >= 100:
                 break
             name = os.path.basename(path)

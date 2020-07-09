@@ -15,7 +15,7 @@ def main():
     parser.add_argument('mountpoint', type=str, help='the mountpoint')
     parser.add_argument('--database', '-d', type=str, help='the sqlite3 database file', default='faptrack.db')
     parser.add_argument('--max_view_time', '-m', type=int, help='the max view time to be recorded', default=15*60)
-    parser.add_argument('--logging', '-l', choices=logging._nameToLevel.keys(), default="WARNING")
+    parser.add_argument('--logging', '-l', type=str, choices=logging._nameToLevel.keys(), default="WARNING", help='the logging level')
     
     args = parser.parse_args()
 
