@@ -23,20 +23,23 @@ class TrackedFile(File):
         self.conn.execute('UPDATE videos SET view_count = view_count + 1 where vid = ?', (self.vid, ))
         self.conn.commit()
 
-        self.task = asyncio.create_task(self.__update)
+        self.task = asyncio.create_task(self.__update())
 
     async def __update(self):
+        logging.info("starting __update for %d", self.vid)
         last_view_time = 0
         released = False
         while True:
             try:
                 await asyncio.sleep(10)
             except asyncio.CancelledError:
+                logging.info("__update for %d is cancaled", self.vid)
                 released = True
             finally:
                 cur = gettime()
                 view_time = self.normalize(cur - self.start_time)
-                self.conn.execute('UPDATE videos SET view_time = viewtime + ? where vid = ?', (view_time - last_view_time, self.vid))
+                logging.info("update view_time %d for %d", view_time, self.vid)
+                self.conn.execute('UPDATE videos SET view_time = view_time + ? where vid = ?', (view_time - last_view_time, self.vid))
                 self.conn.commit()
                 last_view_time = view_time
             if released:

@@ -2,7 +2,10 @@
 import pyfuse3
 from vfs import VirtualFS
 from trackfs import trackFS
-import trio
+import asyncio
+import pyfuse3_asyncio
+
+pyfuse3_asyncio.enable()
 
 import argparse
 
@@ -29,7 +32,7 @@ def main():
         return sqlite3.connect(args.database)
     pyfuse3.init(VirtualFS(trackFS(conn_fac, args.max_view_time * (10**9))), args.mountpoint, my_opts)
     try:
-        trio.run(pyfuse3.main)
+        asyncio.run(pyfuse3.main())
     except:
         pyfuse3.close()
         raise

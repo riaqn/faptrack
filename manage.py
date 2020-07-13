@@ -8,18 +8,22 @@ import stat
 from pymediainfo import MediaInfo
 import argparse
 
+# recursivley list regular files in a directory
 def walk(path):
-    yield path
     sta = os.stat(path)
     if stat.S_ISDIR(sta.st_mode):
         for e in os.scandir(path):
             yield from walk(e.path)
+    elif stat.S_ISREG(sta.st_mode):
+        yield path
     
 def main():
     parser = argparse.ArgumentParser(description='Managing video database')
     parser.add_argument('--database', '-d', type=str, help='the sqlite3 database file', default='faptrack.db')
+    parser.add_argument('--logging', '-l', type=str, choices=logging._nameToLevel.keys(), default="WARNING", help='the logging level')
  
     subparsers = parser.add_subparsers(dest='subcmd')
+
 
     parser_add = subparsers.add_parser('add', help='add videos')
     parser_add.add_argument('file', type=str, nargs='+',help='videos to add to the database')
@@ -34,17 +38,22 @@ def main():
 
     args = parser.parse_args()
 
+    logging.basicConfig(format='%(asctime)s %(message)s', level=logging._nameToLevel[args.logging])
+
+
     conn = sqlite3.connect(args.database)
     conn.isolation_level = 'DEFERRED'
 
     if args.subcmd == 'add':
         def func(path):
+            logging.debug('testing %s', path)
             try:
                 media_info = MediaInfo.parse(path)
-            except:
+            except e:
+                logging.error('error while parsing %s', e)
                 return False
             for track in media_info.tracks:
-                if track.track_type == 'Video':
+                if track.track_type == 'Video' and track.duration is not None:
                     conn.execute('INSERT INTO videos (path) VALUES (?)', (path,))
                     return True
             return False
@@ -68,8 +77,8 @@ def main():
             conn.rollback()
         
     elif args.subcmd == 'list':
-        for row in conn.execute('SELECT vid, avg_avg_view_time, path from videos where view_count > 0 ORDER BY avg_avg_view_time DESC LIMIT ? OFFSET ?', (args.limit, args.offset)):
-            print(row[0],row[1], row[2])
+        for row in conn.execute('SELECT vid, view_time, view_count, path from videos where view_count > 0 ORDER BY avg_avg_view_time DESC LIMIT ? OFFSET ?', (args.limit, args.offset)):
+            print(*row)
     elif args.subcmd == 'reset':
         c = conn.cursor()
         for vid in args.vid:
